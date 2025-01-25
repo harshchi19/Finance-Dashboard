@@ -128,7 +128,6 @@ def algo_strag():
             strategies = {
                 "SMA Crossover": sma_crossover_strategy(data),
                 "RSI": rsi_strategy(data),
-                "Bollinger Bands": bollinger_bands_strategy(data),
                 "MACD": macd_strategy(data),
                 "Buy and Hold": buy_and_hold(data)
             }
