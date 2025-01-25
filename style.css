@@ -1,0 +1,85 @@
+/* Hide scrollbar for the entire HTML document */
+html {
+    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;  /* Internet Explorer 10+ */
+}
+
+html::-webkit-scrollbar {
+    display: none;  /* WebKit */
+}
+
+/* Custom CSS for Streamlit Sidebar */
+[data-testid="stSidebar"] {
+    background:linear-gradient(200deg, #FFF 8.22%, #FF1500 101.07%);
+    width: 362px !important;
+    border: 2px solid #ff1500;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    font-family: 'Manrope', sans-serif;
+}
+
+/* Apply Manrope font to all text in sidebar, including h1 */
+[data-testid="stSidebar"] * {
+    font-family: 'Manrope', sans-serif;
+}
+
+/* Style for drag and drop upload widgets */
+[data-testid="stFileUploader"] {
+    border-radius: 2px;
+}
+
+/* Style for buttons inside the sidebar */
+[data-testid="stSidebar"] button {
+    background-color: black !important;
+    color: white !important;
+}
+
+/* Style for radio buttons in the sidebar */
+[data-testid="stSidebar"] .stRadio > label {
+    font-size: 26px !important;
+    font-weight: 600 !important;
+}
+
+[data-testid="stSidebar"] .stRadio > div {
+    font-size: 25px !important;
+    font-weight: 900 !important;
+}
+
+[data-testid="stSidebar"] .stRadio [role="radiogroup"] label {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+}
+
+[data-testid="stSidebar"] button:hover {
+    background-color: white !important;
+    color: #ff1150 !important;
+    border: 2px solid #ff1150 !important;
+}         
+
+[data-testid="stSidebar"] .stTextInput, 
+[data-testid="stSidebar"] .stSelectbox, 
+[data-testid="stSidebar"] .stMultiSelect {
+    font-family: 'Manrope', sans-serif;
+    font-size: 32px;
+}
+
+[data-testid="stSidebar"] .stTextInput:hover, 
+[data-testid="stSidebar"] .stSelectbox:hover, 
+[data-testid="stSidebar"] .stMultiSelect:hover,
+[data-testid="stSidebar"] .stTextInput:focus, 
+[data-testid="stSidebar"] .stSelectbox:focus, 
+[data-testid="stSidebar"] .stMultiSelect:focus {
+    border-color: #ff1150;
+    box-shadow: 0 0 0 1px #ff1150;
+}
+
+[data-testid="stSidebar"] .stRadio:hover,
+[data-testid="stSidebar"] .stCheckbox:hover {
+    color: #ff1150;
+}
+
+[data-testid="stSidebar"] .stRadio [role="radiogroup"] label:hover,
+[data-testid="stSidebar"] .stCheckbox label:hover {
+    color: #ff1150;
+}
+
