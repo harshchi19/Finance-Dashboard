@@ -677,7 +677,7 @@ def infomatrix():
         insurance()
     elif page == "CryptoCurrency":
         crypto()
-    elif page == 'Unified Banking':
+    elif page == 'Unified Banking using Blockchain':
         bank()
 
 if __name__ == "__main__":
