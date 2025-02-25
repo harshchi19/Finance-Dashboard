@@ -10,7 +10,7 @@ from ocr import ocr
 from dupont import dupont
 from Algo_Strategy import algo_strag
 from BI import bi
-from Bussiness_Analysts import bussiness_analysts
+# from Bussiness_Analysts import bussiness_analysts
 from Insurance import insurance
 from CryptoCurrency import crypto
 from banking import bank
