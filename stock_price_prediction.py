@@ -83,40 +83,47 @@ def stock():
             return
 
     data = download_data(option, start_date, end_date)
+    if data.empty:
+        st.error("No data found for the given stock symbol and date range.")
+        return
+
     scaler = StandardScaler()
 
     def tech_indicators():
         st.header('Technical Indicators')
         indicator_option = st.radio('Choose a Technical Indicator to Visualize', ['Close', 'BB', 'MACD', 'RSI', 'SMA', 'EMA'])
 
-        bb_indicator = BollingerBands(data.Close)
-        bb = data
-        bb['bb_h'] = bb_indicator.bollinger_hband()
-        bb['bb_l'] = bb_indicator.bollinger_lband()
-        bb = bb[['Close', 'bb_h', 'bb_l']]
-        macd = MACD(data.Close).macd()
-        rsi = RSIIndicator(data.Close).rsi()
-        sma = SMAIndicator(data.Close, window=14).sma_indicator()
-        ema = EMAIndicator(data.Close).ema_indicator()
+        try:
+            bb_indicator = BollingerBands(data.Close)
+            bb = data.copy()
+            bb['bb_h'] = bb_indicator.bollinger_hband()
+            bb['bb_l'] = bb_indicator.bollinger_lband()
+            bb = bb[['Close', 'bb_h', 'bb_l']]
+            macd = MACD(data.Close).macd()
+            rsi = RSIIndicator(data.Close).rsi()
+            sma = SMAIndicator(data.Close, window=14).sma_indicator()
+            ema = EMAIndicator(data.Close).ema_indicator()
 
-        if indicator_option == 'Close':
-            st.write('Close Price')
-            st.line_chart(data.Close)
-        elif indicator_option == 'BB':
-            st.write('BollingerBands')
-            st.line_chart(bb)
-        elif indicator_option == 'MACD':
-            st.write('Moving Average Convergence Divergence')
-            st.line_chart(macd)
-        elif indicator_option == 'RSI':
-            st.write('Relative Strength Indicator')
-            st.line_chart(rsi)
-        elif indicator_option == 'SMA':
-            st.write('Simple Moving Average')
-            st.line_chart(sma)
-        else:
-            st.write('Exponential Moving Average')
-            st.line_chart(ema)
+            if indicator_option == 'Close':
+                st.write('Close Price')
+                st.line_chart(data.Close)
+            elif indicator_option == 'BB':
+                st.write('BollingerBands')
+                st.line_chart(bb)
+            elif indicator_option == 'MACD':
+                st.write('Moving Average Convergence Divergence')
+                st.line_chart(macd)
+            elif indicator_option == 'RSI':
+                st.write('Relative Strength Indicator')
+                st.line_chart(rsi)
+            elif indicator_option == 'SMA':
+                st.write('Simple Moving Average')
+                st.line_chart(sma)
+            else:
+                st.write('Exponential Moving Average')
+                st.line_chart(ema)
+        except Exception as e:
+            st.error(f"An error occurred while calculating technical indicators: {e}")
 
     def dataframe():
         st.header('Recent Data')
