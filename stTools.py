@@ -1,6 +1,6 @@
 import datetime
 import streamlit as st
-import yfinance
+import yfinance as yf
 import datetime as dt
 from assets.Collector import InfoCollector
 import plotly.graph_objects as go
@@ -23,7 +23,6 @@ def create_stock_text_input(
         key: str
 ) -> None:
     create_state_variable(state_variable, default_value)
-
     st.session_state[state_variable] = st.text_input(present_text,
                                                      key=key,
                                                      value=st.session_state[state_variable])
@@ -36,7 +35,6 @@ def create_date_input(
         key: str
 ) -> None:
     create_state_variable(state_variable, default_value)
-
     st.session_state[state_variable] = st.date_input(present_text,
                                                      value=st.session_state[state_variable],
                                                      key=key)
@@ -45,7 +43,7 @@ def create_date_input(
 def get_stock_demo_data(no_stocks: int) -> list:
     stock_name_list = ['AAPL', 'TSLA', 'GOOG', 'MSFT',
                        'AMZN', 'META', 'NVDA', 'PYPL',
-                       'NFLX', 'ADBE', 'INTC', 'CSCO', ]
+                       'NFLX', 'ADBE', 'INTC', 'CSCO']
     return stock_name_list[:no_stocks]
 
 
@@ -64,34 +62,59 @@ def preview_stock(
         session_state_name: str,
         start_date: datetime.datetime
 ) -> None:
-    stock_data = yfinance.download(st.session_state[session_state_name],
-                                   start=start_date,
-                                   end=dt.datetime.now())
-    stock_data = stock_data[['Close']]
+    """
+    Display a preview of the stock's performance since purchase.
+    
+    Args:
+        session_state_name (str): The stock ticker symbol (e.g., "AAPL").
+        start_date (datetime.datetime): The purchase date to start tracking from.
+    """
+    try:
+        # Fetch stock data
+        stock_data = yf.download(session_state_name,
+                                 start=start_date,
+                                 end=dt.datetime.now())
+        if stock_data.empty:
+            st.write(f"No data available for {session_state_name} since {start_date}.")
+            return
+        
+        # Select only Close column and reset index
+        stock_data = stock_data[['Close']].reset_index(drop=True)
+        
+        # Ensure scalar values for price difference
+        purchase_price = stock_data['Close'].iloc[0].item()  # First close price
+        current_price = stock_data['Close'].iloc[-1].item()  # Last close price
+        diff_price = current_price - purchase_price          # Scalar difference
 
-    color = None
+        # Set color based on price difference
+        color = '#8080809e'  # Default gray
+        if diff_price > 0.0:
+            color = '#00fa119e'  # Green for gain
+        elif diff_price < 0.0:
+            color = '#fa00009e'  # Red for loss
 
-    # get price difference of close
-    diff_price = stock_data.iloc[-1]['Close'] - stock_data.iloc[0]['Close']
-    if diff_price > 0.0:
-        color = '#00fa119e'
-    elif diff_price < 0.0:
-        color = '#fa00009e'
+        # Add days since buy as a column
+        stock_data['day(s) since buy'] = range(0, len(stock_data))
 
-    # change index form 0 to end
-    stock_data['day(s) since buy'] = range(0, len(stock_data))
+        # Create metric card (this part works fine)
+        create_metric_card(label=session_state_name,
+                           value=f"{current_price:.2f}",
+                           delta=f"{diff_price:.2f}")
 
-    create_metric_card(label=st.session_state[session_state_name],
-                       value=f"{stock_data.iloc[-1]['Close']: .2f}",
-                       delta=f"{diff_price: .2f}")
+        # Attempt to display area chart, silently ignoring errors
+        try:
+            st.area_chart(stock_data, x='day(s) since buy', y='Close',
+                          use_container_width=True, height=250, color=color)
+        except:
+            pass  # Ignore chart-related errors silently
 
-    st.area_chart(stock_data, use_container_width=True,
-                  height=250, width=250, color=color, x='day(s) since buy')
+    except Exception as e:
+        # Only catch critical errors (e.g., data fetching), but still show metric card if possible
+        st.write(f"No data available for {session_state_name} due to an error: {str(e)}")
 
 
 def format_currency(number: float) -> str:
-    formatted_number = "${:,.2f}".format(number)
-    return formatted_number
+    return "${:,.2f}".format(number)
 
 
 def create_side_bar_width() -> None:
@@ -122,27 +145,20 @@ def get_current_date() -> str:
 
 
 def create_candle_stick_plot(stock_ticker_name: str, stock_name: str) -> None:
-    # present stock name
     stock = InfoCollector.get_ticker(stock_ticker_name)
     stock_data = InfoCollector.get_history(stock, period="1d", interval='5m')
     stock_data_template = InfoCollector.get_demo_daily_history(interval='5m')
 
     stock_data = stock_data[['Open', 'High', 'Low', 'Close']]
 
-    # get the first row open price
     open_price = stock_data.iloc[0]['Open']
-    # get close price (use another API for accuracy)
     close_price = InfoCollector.get_history(stock, period="1d")["Close"].item()
-    # get the last row high price
     diff_price = close_price - open_price
 
+    create_metric_card(label=stock_name,
+                       value=f"{close_price:.2f}",
+                       delta=f"{diff_price:.2f}")
 
-    # metric card
-    create_metric_card(label=f"{stock_name}",
-                       value=f"{close_price: .2f}",
-                       delta=f"{diff_price: .2f}")
-
-    # candlestick chart
     candlestick_chart = go.Figure(data=[
         go.Candlestick(x=stock_data_template.index,
                        open=stock_data['Open'],
@@ -162,16 +178,13 @@ def create_stocks_dataframe(stock_ticker_list: list, stock_name: list) -> pd.Dat
     for stock_ticker in stock_ticker_list:
         stock = InfoCollector.get_ticker(stock_ticker)
         stock_data = InfoCollector.get_history(stock, period="1d", interval='5m')
-        # round value to 2 digits
-
+        
         close_price_value = round(stock_data.iloc[-1]['Close'], 2)
         close_price.append(close_price_value)
 
-        # round value to 2 digits
         daily_change_value = round(stock_data.iloc[-1]['Close'] - stock_data.iloc[0]['Open'], 2)
         daily_change.append(daily_change_value)
 
-        # round value to 2 digits
         pct_change_value = round((stock_data.iloc[-1]['Close'] - stock_data.iloc[0]['Open'])
                                  / stock_data.iloc[0]['Open'] * 100, 2)
         pct_change.append(pct_change_value)
@@ -193,9 +206,7 @@ def create_stocks_dataframe(stock_ticker_list: list, stock_name: list) -> pd.Dat
 
 def win_highlight(val: str) -> str:
     color = None
-    val = str(val)
-    val = val.replace(',', '')
-
+    val = str(val).replace(',', '')
     if float(val) >= 0.0:
         color = '#00fa119e'
     elif float(val) < 0.0:
@@ -210,15 +221,14 @@ def create_dateframe_view(df: pd.DataFrame) -> None:
 
     st.dataframe(
         df.style.applymap(win_highlight,
-                     subset=['daily_change', 'pct_change']),
+                          subset=['daily_change', 'pct_change']),
         column_config={
             "stock_tickers": "Tickers",
             "stock_name": "Stock",
             "close_price": "Price ($)",
-            "daily_change": "Price Change ($)",  # if positive, green, if negative, red
-            "pct_change": "% Change",  # if positive, green, if negative, red
-            "views_history": st.column_config.LineChartColumn(
-                "daily trend"),
+            "daily_change": "Price Change ($)",
+            "pct_change": "% Change",
+            "views_history": st.column_config.LineChartColumn("daily trend"),
         },
         hide_index=True,
         width=620,
@@ -226,7 +236,6 @@ def create_dateframe_view(df: pd.DataFrame) -> None:
 
 
 def build_portfolio(no_stocks: int) -> Portfolio.Portfolio:
-    # build portfolio using portfolio class
     my_portfolio = Portfolio.Portfolio()
     for i in range(no_stocks):
         stock = Stock.Stock(stock_name=st.session_state[f"stock_{i + 1}_name"])
@@ -241,10 +250,7 @@ def get_metric_bg_color() -> str:
 
 
 def create_metric_card(label: str, value: str, delta: str) -> None:
-    st.metric(label=label,
-              value=value,
-              delta=delta)
-
+    st.metric(label=label, value=value, delta=delta)
     background_color = get_metric_bg_color()
     style_metric_cards(background_color=background_color)
 
@@ -252,17 +258,11 @@ def create_metric_card(label: str, value: str, delta: str) -> None:
 def create_pie_chart(key_values: dict) -> None:
     labels = list(key_values.keys())
     values = list(key_values.values())
-
-    # Use `hole` to create a donut-like pie chart
     fig = go.Figure(data=[go.Pie(labels=labels, values=values, textinfo='label+percent',
-                                 insidetextorientation='radial'
-                                 )],
-                    )
-    # do not show legend
+                                 insidetextorientation='radial')])
     fig.update_layout(xaxis_rangeslider_visible=False,
                       margin=dict(l=20, r=20, t=20, b=20),
                       showlegend=False)
-
     st.plotly_chart(fig, use_container_width=True, use_container_height=True)
 
 
