@@ -182,7 +182,7 @@ def ai_assistant():
     with st.sidebar:
         st.title('Assistant Settings')
         hf_api_token = os.getenv("API_KEY")
-        gemini_api_key = "AIzaSyCZa8e1qnbcxnMIWivihkcny1EZPKEAicY"
+        gemini_api_key = "AIzaSyDXACe0tXmUKnSqKd3RZCarT2HXJaGETxc"
         
         st.button('Clear Chat History', on_click=clear_chat_history)
         
