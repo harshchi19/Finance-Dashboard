@@ -93,8 +93,8 @@ def stock():
         indicator_option = st.radio('Choose a Technical Indicator to Visualize', ['Close', 'MACD', 'RSI', 'SMA', 'EMA'])
 
         try:
-            # Ensure the data is 1-dimensional
-            close_prices = data['Close'].values.flatten()
+            # Ensure the data is a pandas.Series
+            close_prices = pd.Series(data['Close'])
 
             macd = MACD(close_prices).macd()
             rsi = RSIIndicator(close_prices).rsi()
