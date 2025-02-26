@@ -221,7 +221,7 @@ def stock_prediction_game():
                 
                 st.write(f"Your current score: {st.session_state.game_score}")
 
-def main():
+def ai_assistant():
     st.markdown(
     """
     <style>
