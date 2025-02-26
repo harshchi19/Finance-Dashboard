@@ -181,7 +181,7 @@ def ai_assistant():
     # Sidebar for settings and file upload
     with st.sidebar:
         st.title('Assistant Settings')
-        hf_api_token = os.getenv("API_KEY")
+        hf_api_token = "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"
         gemini_api_key = "AIzaSyDXACe0tXmUKnSqKd3RZCarT2HXJaGETxc"
         
         st.button('Clear Chat History', on_click=clear_chat_history)
