@@ -514,7 +514,7 @@ def infomatrix():
 
         st.markdown("""
             <div class='feature-text2'>
-                printf("Winners")<br>
+                FinWise<br>
                 Connect with us 
             </div>
             <div class="footer-card">
