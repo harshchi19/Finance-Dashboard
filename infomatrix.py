@@ -1,5 +1,5 @@
 import streamlit as st
-st.set_page_config(page_title="FinRupee",page_icon = "images\\icon.jpg", layout="wide")
+st.set_page_config(page_title="FinWise",page_icon = "images\\icon.jpg", layout="wide")
 import base64
 from main_page import main
 from AI_Finance_Management import AIFM
@@ -36,7 +36,7 @@ def infomatrix():
 
 
     # # Set page config
-    # st.set_page_config(page_title="FinRupee",page_icon = "images/icon.jpg", layout="wide")
+    # st.set_page_config(page_title="FinWise",page_icon = "images/icon.jpg", layout="wide")
 
 
     st.sidebar.title("FinRupee")
