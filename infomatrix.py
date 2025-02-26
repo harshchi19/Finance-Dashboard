@@ -39,7 +39,7 @@ def infomatrix():
     # st.set_page_config(page_title="FinWise",page_icon = "images/icon.jpg", layout="wide")
 
 
-    st.sidebar.title("FinRupee")
+    st.sidebar.title("FinWise")
     page = st.sidebar.radio("Checkout", ["AI Assistant", "Portfolio","Expense Retrieval","Algorithm Strategies"])
 
 
