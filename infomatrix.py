@@ -40,7 +40,7 @@ def infomatrix():
 
 
     st.sidebar.title("FinWise")
-    page = st.sidebar.radio("Checkout", ["AI Assistant", "Portfolio","Expense Retrieval","Algorithm Strategies"])
+    page = st.sidebar.radio("Checkout", ["AI Assistant", "Portfolio","Expense Retrieval","Algorithm Strategies", "Stock Price Prediction"])
 
 
     def load_css(file_name):
