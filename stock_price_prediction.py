@@ -93,10 +93,13 @@ def stock():
         indicator_option = st.radio('Choose a Technical Indicator to Visualize', ['Close', 'MACD', 'RSI', 'SMA', 'EMA'])
 
         try:
-            macd = MACD(data.Close).macd()
-            rsi = RSIIndicator(data.Close).rsi()
-            sma = SMAIndicator(data.Close, window=14).sma_indicator()
-            ema = EMAIndicator(data.Close).ema_indicator()
+            # Ensure the data is 1-dimensional
+            close_prices = data['Close'].values.flatten()
+
+            macd = MACD(close_prices).macd()
+            rsi = RSIIndicator(close_prices).rsi()
+            sma = SMAIndicator(close_prices, window=14).sma_indicator()
+            ema = EMAIndicator(close_prices).ema_indicator()
 
             if indicator_option == 'Close':
                 st.write('Close Price')
