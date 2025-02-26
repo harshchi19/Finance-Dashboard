@@ -93,29 +93,42 @@ def stock():
         indicator_option = st.radio('Choose a Technical Indicator to Visualize', ['Close', 'MACD', 'RSI', 'SMA', 'EMA'])
 
         try:
-            # Ensure the data is a pandas.Series
-            close_prices = pd.Series(data['Close'])
+            # Fix: Extract the Close values as a 1D array for technical indicators
+            close_prices = data['Close'].values
 
-            macd = MACD(close_prices).macd()
-            rsi = RSIIndicator(close_prices).rsi()
-            sma = SMAIndicator(close_prices, window=14).sma_indicator()
-            ema = EMAIndicator(close_prices).ema_indicator()
+            # Create technical indicators
+            macd_indicator = MACD(close_prices=pd.Series(close_prices))
+            rsi_indicator = RSIIndicator(close_prices=pd.Series(close_prices))
+            sma_indicator = SMAIndicator(close_prices=pd.Series(close_prices), window=14)
+            ema_indicator = EMAIndicator(close_prices=pd.Series(close_prices))
+            
+            # Calculate indicator values
+            macd = macd_indicator.macd()
+            rsi = rsi_indicator.rsi()
+            sma = sma_indicator.sma_indicator()
+            ema = ema_indicator.ema_indicator()
 
+            # Create DataFrames with dates for better visualization
+            macd_df = pd.DataFrame(macd.values, index=data.index, columns=['MACD'])
+            rsi_df = pd.DataFrame(rsi.values, index=data.index, columns=['RSI'])
+            sma_df = pd.DataFrame(sma.values, index=data.index, columns=['SMA'])
+            ema_df = pd.DataFrame(ema.values, index=data.index, columns=['EMA'])
+            
             if indicator_option == 'Close':
                 st.write('Close Price')
                 st.line_chart(data.Close)
             elif indicator_option == 'MACD':
                 st.write('Moving Average Convergence Divergence')
-                st.line_chart(macd)
+                st.line_chart(macd_df)
             elif indicator_option == 'RSI':
                 st.write('Relative Strength Indicator')
-                st.line_chart(rsi)
+                st.line_chart(rsi_df)
             elif indicator_option == 'SMA':
                 st.write('Simple Moving Average')
-                st.line_chart(sma)
+                st.line_chart(sma_df)
             else:
                 st.write('Exponential Moving Average')
-                st.line_chart(ema)
+                st.line_chart(ema_df)
         except Exception as e:
             st.error(f"An error occurred while calculating technical indicators: {e}")
 
@@ -124,25 +137,40 @@ def stock():
         st.dataframe(data.tail(10))
 
     def model_engine(model, num):
-        df = data[['Close']]
-        df['preds'] = data.Close.shift(-num)
+        df = data[['Close']].copy()  # Create a copy to avoid SettingWithCopyWarning
+        df['preds'] = df.Close.shift(-num)
+        
+        # Drop NaN values that result from the shift operation
+        df = df.dropna()
+        
         x = df.drop(['preds'], axis=1).values
         x = scaler.fit_transform(x)
+        
+        # Get the last num rows for forecasting
         x_forecast = x[-num:]
+        
+        # Remove the last num rows for training
         x = x[:-num]
         y = df.preds.values
-        y = y[:-num]
-
+        
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=.2, random_state=7)
         model.fit(x_train, y_train)
         preds = model.predict(x_test)
-        st.text(f'r2_score: {r2_score(y_test, preds)} \
-                \nMAE: {mean_absolute_error(y_test, preds)}')
+        
+        st.text(f'r2_score: {r2_score(y_test, preds):.4f} \nMAE: {mean_absolute_error(y_test, preds):.4f}')
+        
         forecast_pred = model.predict(x_forecast)
-        day = 1
-        for i in forecast_pred:
-            st.text(f'Day {day}: {i}')
-            day += 1
+        st.subheader(f"{num}-Day Price Forecast")
+        
+        # Create a forecast dataframe for better presentation
+        forecast_dates = [today + datetime.timedelta(days=i) for i in range(1, num+1)]
+        forecast_df = pd.DataFrame({
+            'Day': [f'Day {i}' for i in range(1, num+1)],
+            'Date': [d.strftime('%Y-%m-%d') for d in forecast_dates],
+            'Predicted Price': [f'${price:.2f}' for price in forecast_pred]
+        })
+        
+        st.table(forecast_df)
 
     def predict():
         model = st.radio('Choose a model', ['LinearRegression', 'RandomForestRegressor', 'ExtraTreesRegressor', 'KNeighborsRegressor', 'XGBoostRegressor'])
