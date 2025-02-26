@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
-from ta.volatility import BollingerBands
 from ta.trend import MACD, EMAIndicator, SMAIndicator
 from ta.momentum import RSIIndicator
 import datetime
@@ -91,14 +90,9 @@ def stock():
 
     def tech_indicators():
         st.header('Technical Indicators')
-        indicator_option = st.radio('Choose a Technical Indicator to Visualize', ['Close', 'BB', 'MACD', 'RSI', 'SMA', 'EMA'])
+        indicator_option = st.radio('Choose a Technical Indicator to Visualize', ['Close', 'MACD', 'RSI', 'SMA', 'EMA'])
 
         try:
-            bb_indicator = BollingerBands(data.Close)
-            bb = data.copy()
-            bb['bb_h'] = bb_indicator.bollinger_hband()
-            bb['bb_l'] = bb_indicator.bollinger_lband()
-            bb = bb[['Close', 'bb_h', 'bb_l']]
             macd = MACD(data.Close).macd()
             rsi = RSIIndicator(data.Close).rsi()
             sma = SMAIndicator(data.Close, window=14).sma_indicator()
@@ -107,9 +101,6 @@ def stock():
             if indicator_option == 'Close':
                 st.write('Close Price')
                 st.line_chart(data.Close)
-            elif indicator_option == 'BB':
-                st.write('BollingerBands')
-                st.line_chart(bb)
             elif indicator_option == 'MACD':
                 st.write('Moving Average Convergence Divergence')
                 st.line_chart(macd)
