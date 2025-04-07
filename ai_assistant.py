@@ -58,7 +58,7 @@ def generate_stock_chart(ticker):
 
 # Enhanced news fetching with images
 def get_news(query):
-    api_key = "YOUR_NEWS_API_KEY"  # Replace with your actual News API key
+    api_key = "55f8b079335a4cdda914e2a67621de7a"  # Replace with your actual News API key
     url = f"https://newsapi.org/v2/everything?q={query}&apiKey={api_key}&language=en&sortBy=publishedAt&pageSize=5"
     try:
         response = requests.get(url)
