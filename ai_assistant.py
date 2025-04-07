@@ -15,313 +15,226 @@ import google.generativeai as genai
 # Load environment variables
 load_dotenv()
 
-# Set the API token as an environment variable
-GEMINI_API_KEY = "AIzaSyDXACe0tXmUKnSqKd3RZCarT2HXJaGETxc"  # Replace with your actual Gemini API key
+# Configure Gemini API
+GEMINI_API_KEY = "AIzaSyDXACe0tXmUKnSqKd3RZCarT2HXJaGETxc"  # Replace with your actual key
 genai.configure(api_key=GEMINI_API_KEY)
 
+# File handling for fine-tuning and CSV data
 def load_fine_tuning_data():
     fine_tuning_file = 'tune_data.txt'
-    if os.path.exists(fine_tuning_file):
-        with open(fine_tuning_file, 'r') as file:
-            return file.read()
-    return ""
+    return open(fine_tuning_file, 'r').read() if os.path.exists(fine_tuning_file) else ""
 
 def load_csv_data():
     csv_file = 'data.csv'
-    if os.path.exists(csv_file):
-        return pd.read_csv(csv_file)
-    return pd.DataFrame()
+    return pd.read_csv(csv_file) if os.path.exists(csv_file) else pd.DataFrame()
 
 fine_tuning_data = load_fine_tuning_data()
 csv_data = load_csv_data()
 
+# Stock information and charting
 def get_stock_info(ticker):
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
         current_price = stock.history(period='1d')['Close'].iloc[-1]
         company_name = info.get('longName', 'Unknown Company')
-        return f"{company_name} (${ticker}) current price: ${current_price:.2f}"
+        return f"{company_name} (${ticker}) - Current Price: ${current_price:.2f}"
     except Exception as e:
-        return f"Unable to fetch information for {ticker}. Error: {str(e)}"
+        return f"Error fetching {ticker}: {str(e)}"
 
 def generate_stock_chart(ticker):
     end_date = datetime.now()
     start_date = end_date - timedelta(days=365)
-    
     stock = yf.Ticker(ticker)
     hist = stock.history(start=start_date, end=end_date)
     
     fig = go.Figure(data=[go.Candlestick(x=hist.index,
-                open=hist['Open'],
-                high=hist['High'],
-                low=hist['Low'],
-                close=hist['Close'])])
-    
-    fig.update_layout(title=f'{ticker} Stock Price - Past Year',
-                      xaxis_title='Date',
-                      yaxis_title='Price')
-    
+                                         open=hist['Open'],
+                                         high=hist['High'],
+                                         low=hist['Low'],
+                                         close=hist['Close'])])
+    fig.update_layout(title=f'{ticker} Stock Price (Past Year)', xaxis_title='Date', yaxis_title='Price')
     return fig
 
+# Enhanced news fetching with images
 def get_news(query):
-    api_key = "55f8b079335a4cdda914e2a67621de7a"  # Replace with your actual News API key
+    api_key = "YOUR_NEWS_API_KEY"  # Replace with your actual News API key
     url = f"https://newsapi.org/v2/everything?q={query}&apiKey={api_key}&language=en&sortBy=publishedAt&pageSize=5"
-    
-    response = requests.get(url)
-    if response.status_code == 200:
-        news = response.json()
-        return news['articles']
-    else:
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.json()['articles']
         return None
+    except Exception as e:
+        return f"News fetch error: {str(e)}"
 
+# Finance-related check
 def is_finance_related(prompt):
-    finance_keywords = ["finance", "stock", "investment", "money", "bank", "credit", "loan", "insurance", "budget", "saving", "debt", "economy", "market", "fund", "portfolio", "dividend", "asset", "liability", "interest", "mortgage", "tax", "retirement", "401k", "IRA"]
+    finance_keywords = ["finance", "stock", "investment", "money", "bank", "credit", "loan", "insurance", "budget", 
+                        "saving", "debt", "economy", "market", "fund", "portfolio", "dividend", "asset", "liability", 
+                        "interest", "mortgage", "tax", "retirement", "401k", "IRA"]
     return any(keyword in prompt.lower() for keyword in finance_keywords)
 
+# AI response generation with increased context length
 def generate_ai_response(prompt):
+    greeting_responses = {
+        "hi": "Hello! How can I assist you with your financial queries today?",
+        "hello": "Hi there! I'm here to help with finance, stocks, or insurance. What’s on your mind?"
+    }
+    
+    # Handle greetings
+    prompt_lower = prompt.lower().strip()
+    if prompt_lower in greeting_responses:
+        return greeting_responses[prompt_lower]
+
+    # Restrict to finance-related queries
     if not is_finance_related(prompt):
-        return "I'm sorry, but I can only answer questions related to finance, stocks, investments, and other financial matters. Could you please ask a finance-related question?"
+        return "I’m specialized in finance-related topics like stocks, investments, and insurance. Please ask a finance-related question!"
 
-    # Create context for the model with the fine-tuning data and CSV data
-    context = f"""You are an AI Assistant specialized in personal finance, insurance, credit scoring, stocks, and related topics. 
-    Only answer questions related to finance. If a question is not about finance, politely inform the user that you can only discuss financial matters.
+    # Build detailed context
+    context = f"""You are an expert AI Financial Assistant specializing in personal finance, insurance, credit scoring, stocks, and investments. 
+    Provide detailed, accurate, and comprehensive responses only to finance-related questions. For non-finance queries, politely redirect the user to financial topics.
+
+    Additional Information:
+    - Fine-tuning Data: {fine_tuning_data if fine_tuning_data else "No fine-tuning data available."}
+    - CSV Data: {csv_data.to_string() if not csv_data.empty else "No CSV data available."}
     
-    Use the following additional information in your responses:
+    For stock-related queries, include real-time stock information where applicable."""
 
-    Text data:
-    {fine_tuning_data}
-
-    CSV data:
-    {csv_data.to_string() if not csv_data.empty else "No CSV data available"}
-    
-    For stock queries, use the provided stock information."""
-
-    # Add stock information if relevant
-    if "stock" in prompt.lower() or "$" in prompt:
+    # Add stock info if relevant
+    stock_info = ""
+    if "stock" in prompt_lower or "$" in prompt:
         words = prompt.replace("$", "").split()
         potential_tickers = [word.upper() for word in words if word.isalpha() and len(word) <= 5]
-        
-        stock_info = ""
         for ticker in potential_tickers:
             stock_info += get_stock_info(ticker) + "\n"
-        
         if stock_info:
-            prompt += f"\n\nHere's the current stock information:\n{stock_info}"
-    
+            prompt += f"\n\nStock Information:\n{stock_info}"
+
     try:
-        # Initialize the Gemini model - using Gemini 2.0 Flash
         model = genai.GenerativeModel('gemini-2.0-flash')
-        
-        # Combine context and prompt
-        full_prompt = f"{context}\n\nUser question: {prompt}\n\nYour response:"
-        
-        # Generate content using Gemini
+        full_prompt = f"{context}\n\nUser Query: {prompt}\n\nProvide a detailed response (at least 150 words if possible):"
         response = model.generate_content(full_prompt)
-        
         return response.text
     except Exception as e:
-        st.error(f"An error occurred during AI response generation: {str(e)}")
-        return "Sorry, there was an error processing your request. Please check your API key and try again."
+        return f"Error generating response: {str(e)}"
 
+# Clear chat history
 def clear_chat_history():
-    st.session_state.messages = [{"role": "assistant", "content": "Hello! I'm your AI Financial Assistant. How may I help you with financial matters today?"}]
+    st.session_state.messages = [{"role": "assistant", "content": "Hello! I’m your AI Financial Assistant. How can I assist you with financial matters today?"}]
 
+# Text-to-speech
 def text_to_speech(text):
     tts = gTTS(text=text, lang='en')
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
         tts.save(fp.name)
         return fp.name
 
+# Speech-to-text
 def speech_to_text():
     r = sr.Recognizer()
     with sr.Microphone() as source:
-        st.write("Listening... Speak now.")
+        st.write("Listening... Please speak.")
         audio = r.listen(source)
-        st.write("Processing speech...")
-    
+        st.write("Processing...")
     try:
-        text = r.recognize_google(audio)
-        return text
+        return r.recognize_google(audio)
     except sr.UnknownValueError:
-        return "Sorry, I couldn't understand the audio."
+        return "Sorry, I couldn’t understand the audio."
     except sr.RequestError:
-        return "Sorry, there was an error processing your speech."
+        return "Error processing speech."
 
+# Theme setting
 def set_theme(theme):
     if theme == "dark":
         st.markdown("""
         <style>
-        .stApp {
-            background-color: #1E1E1E;
-            color: #FFFFFF;
-        }
-        .stButton>button {
-            color: #FFFFFF;
-            background-color: #4CAF50;
-            border-radius: 5px;
-        }
-        .stTextInput>div>div>input {
-            color: #FFFFFF;
-            background-color: #2E2E2E;
-        }
-        .stMarkdown {
-            color: #FFFFFF;
-        }
+        .stApp { background-color: #1E1E1E; color: #FFFFFF; }
+        .stButton>button { color: #FFFFFF; background-color: #4CAF50; border-radius: 5px; }
+        .stTextInput>div>div>input { color: #FFFFFF; background-color: #2E2E2E; }
         </style>
         """, unsafe_allow_html=True)
     else:
         st.markdown("""
         <style>
-        .stApp {
-            background-color: #FFFFFF;
-            color: #000000;
-        }
-        .stButton>button {
-            color: #000000;
-            background-color: #4CAF50;
-            border-radius: 5px;
-        }
-        .stTextInput>div>div>input {
-            color: #000000;
-            background-color: #F0F0F0;
-        }
-        .stMarkdown {
-            color: #000000;
-        }
+        .stApp { background-color: #FFFFFF; color: #000000; }
+        .stButton>button { color: #000000; background-color: #4CAF50; border-radius: 5px; }
+        .stTextInput>div>div>input { color: #000000; background-color: #F0F0F0; }
         </style>
         """, unsafe_allow_html=True)
 
-def stock_prediction_game():
-    game_content = st.empty()
-    
-    with game_content.container():
-        st.subheader("Stock Price Prediction Game")
-        
-        if 'game_score' not in st.session_state:
-            st.session_state.game_score = 0
-        
-        ticker = st.text_input("Enter a stock ticker (e.g., AAPL):", key="game_ticker")
-        if ticker:
-            stock = yf.Ticker(ticker)
-            current_price = stock.history(period='1d')['Close'].iloc[-1]
-            st.write(f"Current price of {ticker}: ${current_price:.2f}")
-            
-            prediction = st.radio("Do you think the stock price will go up or down tomorrow?", ('Up', 'Down'))
-            if st.button("Submit Prediction"):
-                # Simulate next day's price (random for demonstration)
-                next_day_price = current_price * (1 + random.uniform(-0.05, 0.05))
-                st.write(f"Next day's price: ${next_day_price:.2f}")
-                
-                if (prediction == 'Up' and next_day_price > current_price) or (prediction == 'Down' and next_day_price < current_price):
-                    st.success("Correct prediction! You earned a point.")
-                    st.session_state.game_score += 1
-                else:
-                    st.error("Wrong prediction. Better luck next time!")
-                
-                st.write(f"Your current score: {st.session_state.game_score}")
-
+# Main application
 def ai_assistant():
-    st.markdown(
-    """
-    <style>
-    @font-face {
-        font-family: 'TattooFont';
-        src: url('path_to_your_font_file.ttf') format('truetype');
-    }
-    .tattoo-text {
-        font-family: 'TattooFont';
-        color: gold;
-        font-style: italic;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-    )
+    st.title("AI Financial Assistant")
 
-    st.markdown("<h1 class='tattoo-text'>AI Financial Assistant</h1>", unsafe_allow_html=True)
-
+    # Sidebar
     with st.sidebar:
-        st.title('🤖 AI Assistant Settings')
-        
-        theme = st.radio("Choose Theme", ("Light", "Dark"))
+        st.header("⚙️ Settings")
+        theme = st.radio("Theme", ("Light", "Dark"))
         set_theme(theme.lower())
         
-        st.button('Clear Chat History', on_click=clear_chat_history)
+        st.button("Clear Chat", on_click=clear_chat_history)
         
-        uploaded_txt_file = st.file_uploader("Upload fine-tuning data (TXT)", type="txt")
-        if uploaded_txt_file is not None:
-            fine_tuning_data = uploaded_txt_file.getvalue().decode("utf-8")
+        uploaded_txt = st.file_uploader("Upload Fine-Tuning Data (TXT)", type="txt")
+        if uploaded_txt:
+            fine_tuning_data = uploaded_txt.getvalue().decode("utf-8")
             with open('tune_data.txt', 'w') as f:
                 f.write(fine_tuning_data)
-            st.success("Fine-tuning text data uploaded and saved!")
+            st.success("Fine-tuning data uploaded!")
 
-        uploaded_csv_file = st.file_uploader("Upload CSV data", type="csv")
-        if uploaded_csv_file is not None:
-            csv_data = pd.read_csv(uploaded_csv_file)
+        uploaded_csv = st.file_uploader("Upload CSV Data", type="csv")
+        if uploaded_csv:
+            csv_data = pd.read_csv(uploaded_csv)
             csv_data.to_csv('data.csv', index=False)
-            st.success("CSV data uploaded and saved!")
+            st.success("CSV data uploaded!")
 
-        st.subheader("Stock Visualization")
-        stock_ticker = st.text_input("Enter a stock ticker (e.g., AAPL):", key="sidebar_ticker")
+        st.subheader("Stock Chart")
+        stock_ticker = st.text_input("Stock Ticker (e.g., AAPL):", key="chart_ticker")
         if stock_ticker:
             st.plotly_chart(generate_stock_chart(stock_ticker))
-        
-        # Add the stock prediction game to the sidebar
-        if 'show_game' not in st.session_state:
-            st.session_state.show_game = False
-        
-        if st.button("Toggle Stock Prediction Game"):
-            st.session_state.show_game = not st.session_state.show_game
 
-    # Display the game in the main content area if toggled on
-    if st.session_state.show_game:
-        stock_prediction_game()
-
+    # Chat initialization
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Hello! I'm your AI Financial Assistant. How may I help you with financial matters today?"}]
+        st.session_state.messages = [{"role": "assistant", "content": "Hello! I’m your AI Financial Assistant. How can I assist you with financial matters today?"}]
 
-    chat_placeholder = st.empty()
-
+    # Chat interface
+    chat_container = st.container()
     with st.container():
         col1, col2 = st.columns([0.9, 0.1])
         with col1:
-            user_input = st.chat_input("Ask about finances, stocks, or insurance:")
+            user_input = st.chat_input("Ask about finance, stocks, or insurance:")
         with col2:
-            speak_button = st.button("🎤")
+            if st.button("🎤"):
+                user_input = speech_to_text()
+                st.write(f"You said: {user_input}")
 
-    if speak_button:
-        user_input = speech_to_text()
-        st.write(f"You said: {user_input}")
-
+    # Process input
     if user_input:
-        if is_finance_related(user_input):
-            st.session_state.messages.append({"role": "user", "content": user_input})
-            
-            response = generate_ai_response(user_input)
-            st.session_state.messages.append({"role": "assistant", "content": response})
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        response = generate_ai_response(user_input)
+        st.session_state.messages.append({"role": "assistant", "content": response})
 
-            # Display relevant news
+        # Display news with images
+        if is_finance_related(user_input):
             news = get_news(user_input)
-            if news:
-                st.subheader("Related News")
+            if news and isinstance(news, list):
+                st.subheader("📰 Related News")
                 for article in news:
-                    st.write(f"{article['title']}")
+                    st.write(f"**{article['title']}**")
                     st.write(article['description'])
+                    if article.get('urlToImage'):
+                        st.image(article['urlToImage'], width=200)
                     st.write(f"[Read more]({article['url']})")
                     st.write("---")
-        else:
-            st.warning("I'm sorry, but I can only answer questions related to finance. Could you please ask a finance-related question?")
 
-    with chat_placeholder.container():
-        for i, message in enumerate(st.session_state.messages):
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-                col1, col2 = st.columns([0.9, 0.1])
-                with col2:
-                    if st.button("🔊", key=f"play_{i}"):
-                        audio_file = text_to_speech(message["content"])
-                        st.audio(audio_file)
+    # Display chat history
+    with chat_container:
+        for i, msg in enumerate(st.session_state.messages):
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+                if st.button("🔊", key=f"play_{i}"):
+                    audio_file = text_to_speech(msg["content"])
+                    st.audio(audio_file)
 
 if __name__ == "__main__":
-    main()
+    ai_assistant()
