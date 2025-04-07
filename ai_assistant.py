@@ -9,15 +9,17 @@ import speech_recognition as sr
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import requests
-import random
 import google.generativeai as genai
 
 # Load environment variables
 load_dotenv()
 
 # Configure Gemini API
-GEMINI_API_KEY = "AIzaSyDXACe0tXmUKnSqKd3RZCarT2HXJaGETxc"  # Replace with your actual key
+GEMINI_API_KEY = "AIzaSyDXACe0tXmUKnSqKd3RZCarT2HXJaGETxc"  # Replace with your actual Gemini API key
 genai.configure(api_key=GEMINI_API_KEY)
+
+# News API Key
+NEWS_API_KEY = "55f8b079335a4cdda914e2a67621de7a"  # Replace with your actual News API key from newsapi.org
 
 # File handling for fine-tuning and CSV data
 def load_fine_tuning_data():
@@ -56,17 +58,20 @@ def generate_stock_chart(ticker):
     fig.update_layout(title=f'{ticker} Stock Price (Past Year)', xaxis_title='Date', yaxis_title='Price')
     return fig
 
-# Enhanced news fetching with images
+# Fetch real news data using News API
 def get_news(query):
-    api_key = "55f8b079335a4cdda914e2a67621de7a"  # Replace with your actual News API key
-    url = f"https://newsapi.org/v2/everything?q={query}&apiKey={api_key}&language=en&sortBy=publishedAt&pageSize=5"
+    url = f"https://newsapi.org/v2/everything?q={query}+finance+stocks+markets+-sports+-entertainment&apiKey={NEWS_API_KEY}&language=en&sortBy=publishedAt&pageSize=5"
     try:
         response = requests.get(url)
         if response.status_code == 200:
-            return response.json()['articles']
-        return None
+            articles = response.json().get('articles', [])
+            if not articles:
+                return "No recent finance-related news found for this query."
+            return articles
+        else:
+            return f"News API error: {response.status_code} - {response.text}"
     except Exception as e:
-        return f"News fetch error: {str(e)}"
+        return f"Error fetching news: {str(e)}"
 
 # Finance-related check
 def is_finance_related(prompt):
@@ -214,18 +219,23 @@ def ai_assistant():
         response = generate_ai_response(user_input)
         st.session_state.messages.append({"role": "assistant", "content": response})
 
-        # Display news with images
+        # Display real news tied to the query
         if is_finance_related(user_input):
             news = get_news(user_input)
-            if news and isinstance(news, list):
-                st.subheader("📰 Related News")
+            if isinstance(news, list) and news:
+                st.subheader("📰 Latest Finance News")
                 for article in news:
                     st.write(f"**{article['title']}**")
-                    st.write(article['description'])
+                    st.write(article['description'] or "No description available.")
                     if article.get('urlToImage'):
-                        st.image(article['urlToImage'], width=200)
+                        st.image(article['urlToImage'], width=200, caption="News Image")
                     st.write(f"[Read more]({article['url']})")
+                    st.write(f"Published: {article['publishedAt']}")
                     st.write("---")
+            elif isinstance(news, str):
+                st.warning(news)  # Display error or no-news message
+            else:
+                st.warning("No relevant news found.")
 
     # Display chat history
     with chat_container:
